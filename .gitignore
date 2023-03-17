@@ -1,4 +1,15 @@
+# Ignore sensitive files
+credentials.json
+token.json
+
+# Ignore Python cache files
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+
+#Ignore the virtual environment folder
+venv/
+
+#Ignore env files
 *.env
