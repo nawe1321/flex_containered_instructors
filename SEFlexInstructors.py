@@ -11,14 +11,14 @@ load_dotenv()
 # Replace with your own API key and domain
 CANVAS_API_KEY = os.environ.get("ctoken")
 COURSEURL = os.environ.get("curl")
-BLUEPRINT_COURSES = [6114, 6127]
+BLUEPRINT_COURSES = [3299, 4182, 6667, 5935, 6130, 6343]
 SHEET_TAB_NAME = 'SE'
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 PHASE_INSTRUCTOR_MAPPING = {
-    'Phase 2 Complete': 'Instructor 2',
-    'Phase 3 Complete': 'Eric Keith',
-    'Phase 4 Complete': 'Instructor 4',
-    'Phase 5 Complete': 'Instructor 5'
+    '[Flex] Student Survey for Phase 1': 'Nancy Noyes',
+    '[Flex] Student Survey for Phase 2': 'Madeline Stark',
+    '[Flex] Student Survey for Phase 3': 'Instructor 4',
+    '[Flex] Student Survey for Phase 4': 'Instructor 5'
 }
 
 def get_sheet_id_by_name(service, spreadsheet_id, sheet_name):
@@ -39,7 +39,8 @@ def get_sheet_id_by_name(service, spreadsheet_id, sheet_name):
 def get_associated_courses(course_id):
     url = f'{COURSEURL}/api/v1/courses/{course_id}/blueprint_templates/default/associated_courses'
     headers = {'Authorization': f'Bearer {CANVAS_API_KEY}'}
-    response = requests.get(url, headers=headers)
+    params = {'per_page': 200}  # Add this line to retrieve the first 200 courses
+    response = requests.get(url, headers=headers, params=params)
     return response.json()
 
 def get_students_with_assignment(course_id, assignment_name, score, days):
@@ -50,19 +51,19 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     students = response.json()
 
     url = f'{COURSEURL}/api/v1/courses/{course_id}/assignments'
-    params = {'per_page': 50}  # Add this line to retrieve the first 50 assignments
+    params = {'per_page': 200}  # Add this line to retrieve the first 200 assignments
     response = requests.get(url, headers=headers, params=params)
     assignments = response.json()
-
+    #print(assignments)
     # Print all assignments to inspect the results
     #print(f"Course ID: {course_id}, All Assignments:")
     #for a in assignments:
-        #print(f"  - {a['name']} (ID: {a['id']})")
+    #    print(f"  - {a['name']} (ID: {a['id']})")
 
     target_assignment = next((a for a in assignments if a['name'] == assignment_name), None)
 
     if not target_assignment:
-        print(f"Course ID: {course_id}, '{assignment_name}' not found")
+        #print(f"Course ID: {course_id}, '{assignment_name}' not found")
         return []
 
     target_assignment_id = target_assignment['id']
@@ -186,7 +187,7 @@ def main():
         for course in associated_courses:
             #print(f"Processing course ID: {course['id']}")
             for phase_name, instructor_name in PHASE_INSTRUCTOR_MAPPING.items():
-                students = get_students_with_assignment(course['id'], phase_name, 1, 7)
+                students = get_students_with_assignment(course['id'], phase_name, 1, 27)
                 # Update instructor_name for each student
                 for student in students:
                     student["instructor_name"] = instructor_name

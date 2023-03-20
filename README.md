@@ -22,7 +22,6 @@ PHASE_INSTRUCTOR_MAPPING: Set this dictionary to map the assignment names to the
 
 pip3 install -r requirements.txt
 
-
 4. Follow the [Python Quickstart Guide for Google Sheets API](https://developers.google.com/sheets/api/quickstart/python) to set up a Google Cloud project and download your `credentials.json` file.
 
 5. Run the script:

@@ -21,6 +21,7 @@ PHASE_INSTRUCTOR_MAPPING = {
     # 'Phase 5 Complete': 'Instructor 5'
 }
 
+
 def get_sheet_id_by_name(service, spreadsheet_id, sheet_name):
     sheets_metadata = service.spreadsheets().get(
         spreadsheetId=spreadsheet_id).execute()
@@ -41,7 +42,8 @@ def get_sheet_id_by_name(service, spreadsheet_id, sheet_name):
 def get_associated_courses(course_id):
     url = f'{COURSEURL}/api/v1/courses/{course_id}/blueprint_templates/default/associated_courses'
     headers = {'Authorization': f'Bearer {CANVAS_API_KEY}'}
-    response = requests.get(url, headers=headers)
+    params = {'per_page': 200}  # Add this line to retrieve the first 200 courses
+    response = requests.get(url, headers=headers, params=params)
     return response.json()
 
 
@@ -53,11 +55,11 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     students = response.json()
 
     url = f'{COURSEURL}/api/v1/courses/{course_id}/assignments'
-    # Add this line to retrieve the first 50 assignments
-    params = {'per_page': 50}
+    # Add this line to retrieve the first 200 assignments
+    params = {'per_page': 200}
     response = requests.get(url, headers=headers, params=params)
     assignments = response.json()
-
+    
     # Print all assignments to inspect the results
     #print(f"Course ID: {course_id}, All Assignments:")
     #for a in assignments:
@@ -85,14 +87,13 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
 
         if submission['score'] == score and submission['graded_at'] >= since_date:
             qualified_students.append({
-        'id': student['id'],
-        'name': student['name'],
-        'sortable_name': student['sortable_name'],
-        'email': student['email'],
-        'sis_user_id': student['sis_user_id'],
-        'assignment_name': assignment_name
-    })
-    
+                'id': student['id'],
+                'name': student['name'],
+                'sortable_name': student['sortable_name'],
+                'email': student['email'],
+                'sis_user_id': student['sis_user_id'],
+                'assignment_name': assignment_name
+            })
     return qualified_students
 
 
@@ -112,11 +113,12 @@ def append_to_google_sheet(data, creds):
     existing_sis_user_ids = [row[2] for row in existing_data if len(row) > 2]
     values = []
 
-     # Step 3: Check for duplicates between the new data and the existing data
+    # Step 3: Check for duplicates between the new data and the existing data
     for student in data:
         if student['sis_user_id'] not in existing_sis_user_ids:
             # Get the instructor name based on the assignment name
-            instructor_name = PHASE_INSTRUCTOR_MAPPING.get(student['assignment_name'], 'Unknown Instructor')
+            instructor_name = PHASE_INSTRUCTOR_MAPPING.get(
+                student['assignment_name'], 'Unknown Instructor')
             row = [
                 datetime.datetime.now().strftime('%Y-%m-%d'),  # Week of
                 student['name'],  # Full name
@@ -134,7 +136,7 @@ def append_to_google_sheet(data, creds):
             {
                 'insertRange': {
                     'range': {
-                        'sheetId': sheet_id, #set by variable at top of script
+                        'sheetId': sheet_id,  # set by variable at top of script
                         'startRowIndex': 1,
                         'endRowIndex': 1 + len(values)
                     },
@@ -144,7 +146,7 @@ def append_to_google_sheet(data, creds):
             {
                 'updateCells': {
                     'range': {
-                        'sheetId': sheet_id, #set by variable at top of script
+                        'sheetId': sheet_id,  # set by variable at top of script
                         'startRowIndex': 1,
                         'endRowIndex': 1 + len(values),
                         'startColumnIndex': 0,
@@ -153,10 +155,11 @@ def append_to_google_sheet(data, creds):
                     'rows': [
                         {
                             'values': [
-                            {'userEnteredValue': {'stringValue': str(cell)}} for cell in row
-                        ] + [
-                            {'userEnteredValue': {'formulaValue': f'=VLOOKUP("{instructor_name}", \'Instructor Roster\'!A:B, 2, FALSE)'}}
-                        ]
+                                {'userEnteredValue': {'stringValue': str(cell)}} for cell in row
+                            ] + [
+                                {'userEnteredValue': {
+                                    'formulaValue': f'=VLOOKUP("{instructor_name}", \'Instructor Roster\'!A:B, 2, FALSE)'}}
+                            ]
                         } for row in values
                     ],
                     'fields': 'userEnteredValue'
@@ -165,13 +168,14 @@ def append_to_google_sheet(data, creds):
         ]
     }
 
-
-    #print(values)
+    # print(values)
     # Step 4: Add only the non-duplicate data to the Google Sheet
-    result = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
+    result = service.spreadsheets().batchUpdate(
+        spreadsheetId=spreadsheet_id, body=body).execute()
 
     updated_rows = len(values)
     print(f'{updated_rows} rows updated.')
+
 
 def main():
     creds = None
@@ -188,12 +192,13 @@ def main():
             token.write(creds.to_json())
     all_students = []
     for blueprint_course in BLUEPRINT_COURSES:
-        #print(f"Processing blueprint course: {blueprint_course}")
+        # print(f"Processing blueprint course: {blueprint_course}")
         associated_courses = get_associated_courses(blueprint_course)
         for course in associated_courses:
-            #print(f"Processing course ID: {course['id']}")
+            # print(f"Processing course ID: {course['id']}")
             for phase_name, instructor_name in PHASE_INSTRUCTOR_MAPPING.items():
-                students = get_students_with_assignment(course['id'], phase_name, 1, 7)
+                students = get_students_with_assignment(
+                    course['id'], phase_name, 1, 7)
                 # Update instructor_name for each student
                 for student in students:
                     student["instructor_name"] = instructor_name
@@ -204,4 +209,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
