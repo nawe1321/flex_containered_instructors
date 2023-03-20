@@ -12,13 +12,29 @@ load_dotenv()
 CANVAS_API_KEY = os.environ.get("ctoken")
 COURSEURL = os.environ.get("curl")
 BLUEPRINT_COURSES = [6114, 6127]
+SHEET_TAB_NAME = 'SE'
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 PHASE_INSTRUCTOR_MAPPING = {
     'Phase 2 Complete': 'Instructor 2',
-    'Phase 3 Complete': 'Instructor 3',
+    'Phase 3 Complete': 'Eric Keith',
     'Phase 4 Complete': 'Instructor 4',
     'Phase 5 Complete': 'Instructor 5'
 }
+
+def get_sheet_id_by_name(service, spreadsheet_id, sheet_name):
+    sheets_metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    sheets = sheets_metadata.get('sheets', '')
+
+    sheet_id = None
+    for sheet in sheets:
+        if sheet['properties']['title'] == sheet_name:
+            sheet_id = sheet['properties']['sheetId']
+            break
+
+    if sheet_id is None:
+        print(f"Error: Could not find a sheet with the name '{sheet_name}'")
+
+    return sheet_id
 
 def get_associated_courses(course_id):
     url = f'{COURSEURL}/api/v1/courses/{course_id}/blueprint_templates/default/associated_courses'
@@ -77,9 +93,11 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
 def append_to_google_sheet(data, creds):
     service = build('sheets', 'v4', credentials=creds)
     spreadsheet_id = '1-SrzwExIqVDfrQRu1s-uruRJwatifFQQI6feZu6-das'
+    sheet_id = get_sheet_id_by_name(service, spreadsheet_id, SHEET_TAB_NAME)
+
     
    # Step 1: Retrieve the existing data from the Google Sheet
-    range_name = 'SE!A2:E'  # Assuming 'sis_user_id' is in column C
+    range_name = f'{SHEET_TAB_NAME}!A2:E'  # Assuming 'sis_user_id' is in column C
     result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
     existing_data = result.get('values', [])
 
@@ -109,7 +127,7 @@ def append_to_google_sheet(data, creds):
             {
                 'insertRange': {
                     'range': {
-                        'sheetId': 1, #second tab in the Google Sheet
+                        'sheetId': sheet_id, #set by variable at top of script
                         'startRowIndex': 1,
                         'endRowIndex': 1 + len(values)
                     },
@@ -119,7 +137,7 @@ def append_to_google_sheet(data, creds):
             {
                 'updateCells': {
                     'range': {
-                        'sheetId': 1, #second tab in the Google Sheet
+                        'sheetId': sheet_id, #set by variable at top of script
                         'startRowIndex': 1,
                         'endRowIndex': 1 + len(values),
                         'startColumnIndex': 0,
