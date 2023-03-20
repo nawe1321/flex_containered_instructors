@@ -15,14 +15,15 @@ BLUEPRINT_COURSES = [6114, 6127]
 SHEET_TAB_NAME = 'Cyber'
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 PHASE_INSTRUCTOR_MAPPING = {
-    #'Phase 2 Complete': 'Instructor 2',
+    # 'Phase 2 Complete': 'Instructor 2',
     'Phase 3 Complete': 'Eric Keith',
-    #'Phase 4 Complete': 'Instructor 4',
-    #'Phase 5 Complete': 'Instructor 5'
+    # 'Phase 4 Complete': 'Instructor 4',
+    # 'Phase 5 Complete': 'Instructor 5'
 }
 
 def get_sheet_id_by_name(service, spreadsheet_id, sheet_name):
-    sheets_metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    sheets_metadata = service.spreadsheets().get(
+        spreadsheetId=spreadsheet_id).execute()
     sheets = sheets_metadata.get('sheets', '')
 
     sheet_id = None
@@ -36,11 +37,13 @@ def get_sheet_id_by_name(service, spreadsheet_id, sheet_name):
 
     return sheet_id
 
+
 def get_associated_courses(course_id):
     url = f'{COURSEURL}/api/v1/courses/{course_id}/blueprint_templates/default/associated_courses'
     headers = {'Authorization': f'Bearer {CANVAS_API_KEY}'}
     response = requests.get(url, headers=headers)
     return response.json()
+
 
 def get_students_with_assignment(course_id, assignment_name, score, days):
     url = f'{COURSEURL}/api/v1/courses/{course_id}/users'
@@ -50,7 +53,8 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     students = response.json()
 
     url = f'{COURSEURL}/api/v1/courses/{course_id}/assignments'
-    params = {'per_page': 50}  # Add this line to retrieve the first 50 assignments
+    # Add this line to retrieve the first 50 assignments
+    params = {'per_page': 50}
     response = requests.get(url, headers=headers, params=params)
     assignments = response.json()
 
@@ -59,16 +63,18 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     #for a in assignments:
         #print(f"  - {a['name']} (ID: {a['id']})")
 
-    target_assignment = next((a for a in assignments if a['name'] == assignment_name), None)
+    target_assignment = next(
+        (a for a in assignments if a['name'] == assignment_name), None)
 
     if not target_assignment:
-        #print(f"Course ID: {course_id}, '{assignment_name}' not found")
+        # print(f"Course ID: {course_id}, '{assignment_name}' not found")
         return []
 
     target_assignment_id = target_assignment['id']
-    #print(f"Course ID: {course_id}, Assignment ID for '{assignment_name}': {target_assignment_id}")
+    # print(f"Course ID: {course_id}, Assignment ID for '{assignment_name}': {target_assignment_id}")
 
-    since_date = (datetime.datetime.now() - datetime.timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%S')
+    since_date = (datetime.datetime.now() -
+                  datetime.timedelta(days=days)).strftime('%Y-%m-%dT%H:%M:%S')
 
     qualified_students = []
     for student in students:
@@ -95,10 +101,11 @@ def append_to_google_sheet(data, creds):
     spreadsheet_id = '1-SrzwExIqVDfrQRu1s-uruRJwatifFQQI6feZu6-das'
     sheet_id = get_sheet_id_by_name(service, spreadsheet_id, SHEET_TAB_NAME)
 
-    
    # Step 1: Retrieve the existing data from the Google Sheet
-    range_name = f'{SHEET_TAB_NAME}!A2:E'  # Assuming 'sis_user_id' is in column C
-    result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
+    # Assuming 'sis_user_id' is in column C
+    range_name = f'{SHEET_TAB_NAME}!A2:E'
+    result = service.spreadsheets().values().get(
+        spreadsheetId=spreadsheet_id, range=range_name).execute()
     existing_data = result.get('values', [])
 
     # Step 2: Extract the 'sis_user_id' column data
