@@ -82,7 +82,8 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     for student in students:
         url = f'{COURSEURL}/api/v1/courses/{course_id}/assignments/{target_assignment_id}/submissions/{student["id"]}'
         params = {'include': ['submission_history']}
-        response = requests.get(url, headers=headers, params=params, timeout=10)
+        response = requests.get(url, headers=headers,
+                                params=params, timeout=10)
         submission = response.json()
 
         if submission['score'] == score and submission['graded_at'] >= since_date:
@@ -105,9 +106,9 @@ def append_to_google_sheet(data, creds):
    # Step 1: Retrieve the existing data from the Google Sheet
     # Assuming 'sis_user_id' is in column C
     range_name = f'{SHEET_TAB_NAME}!A2:E'
-    #pylint: disable=maybe-no-member
+    # pylint: disable=maybe-no-member
     result = service.spreadsheets().values().get(
-        spreadsheetId=spreadsheet_id, range=range_name).execute() 
+        spreadsheetId=spreadsheet_id, range=range_name).execute()
     existing_data = result.get('values', [])
 
     # Step 2: Extract the 'sis_user_id' column data
