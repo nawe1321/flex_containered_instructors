@@ -40,19 +40,19 @@ def get_associated_courses(course_id):
     url = f'{COURSEURL}/api/v1/courses/{course_id}/blueprint_templates/default/associated_courses'
     headers = {'Authorization': f'Bearer {CANVAS_API_KEY}'}
     params = {'per_page': 200}  # Add this line to retrieve the first 200 courses
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(url, headers=headers, params=params, timeout=10)
     return response.json()
 
 def get_students_with_assignment(course_id, assignment_name, score, days):
     url = f'{COURSEURL}/api/v1/courses/{course_id}/users'
     params = {'enrollment_type[]': 'student'}
     headers = {'Authorization': f'Bearer {CANVAS_API_KEY}'}
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(url, headers=headers, params=params, timeout=10)
     students = response.json()
 
     url = f'{COURSEURL}/api/v1/courses/{course_id}/assignments'
     params = {'per_page': 200}  # Add this line to retrieve the first 200 assignments
-    response = requests.get(url, headers=headers, params=params)
+    response = requests.get(url, headers=headers, params=params, timeout=10)
     assignments = response.json()
     #print(assignments)
     # Print all assignments to inspect the results
@@ -75,7 +75,7 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     for student in students:
         url = f'{COURSEURL}/api/v1/courses/{course_id}/assignments/{target_assignment_id}/submissions/{student["id"]}'
         params = {'include': ['submission_history']}
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=headers, params=params, timeout=10)
         submission = response.json()
 
         if submission['score'] == score and submission['graded_at'] >= since_date:
@@ -99,6 +99,7 @@ def append_to_google_sheet(data, creds):
     
    # Step 1: Retrieve the existing data from the Google Sheet
     range_name = f'{SHEET_TAB_NAME}!A2:E'  # Assuming 'sis_user_id' is in column C
+    #pylint: disable=maybe-no-member
     result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
     existing_data = result.get('values', [])
 
@@ -162,8 +163,8 @@ def append_to_google_sheet(data, creds):
 
     #print(values)
     # Step 4: Add only the non-duplicate data to the Google Sheet
+    #pylint: disable=maybe-no-member
     result = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
-
     updated_rows = len(values)
     print(f'{updated_rows} rows updated.')
 
@@ -178,7 +179,7 @@ def main():
             flow = InstalledAppFlow.from_client_secrets_file(
                 'credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as token:
+        with open('token.json', 'w', encoding='utf-8') as token:
             token.write(creds.to_json())
     all_students = []
     for blueprint_course in BLUEPRINT_COURSES:
@@ -187,7 +188,7 @@ def main():
         for course in associated_courses:
             #print(f"Processing course ID: {course['id']}")
             for phase_name, instructor_name in PHASE_INSTRUCTOR_MAPPING.items():
-                students = get_students_with_assignment(course['id'], phase_name, 1, 27)
+                students = get_students_with_assignment(course['id'], phase_name, 1, 7)
                 # Update instructor_name for each student
                 for student in students:
                     student["instructor_name"] = instructor_name
