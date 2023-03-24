@@ -202,8 +202,8 @@ def append_to_google_sheet(data, creds):
 
     # Step 3: Check for duplicates between the new data and the existing data
     for student in data:
-        print(student)
-        print(existing_students)
+        # print(student)
+        # print(existing_students)
         # Check if the student is already in the sheet with the same new instructor name
         is_duplicate = any(
             existing_student['sis_user_id'] == student['sis_user_id']
@@ -232,8 +232,8 @@ def append_to_google_sheet(data, creds):
                 student['name'],  # Full name
                 student['sis_user_id'],  # sis_user_id
                 student['email'],  # Email address
-                student['new_instructor_name'] #new instructor name
-                ]
+                student['new_instructor_name']  # new instructor name
+            ]
 
             values.append(row)
 
