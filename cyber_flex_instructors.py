@@ -21,10 +21,14 @@ SHEET_TAB_NAME = 'Cyber'
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 PHASE_INSTRUCTOR_MAPPING = {
     # 'Phase 2 Complete': 'Instructor 2',
-    'Phase 3 Complete': 'Eric Keith',
+    'Phase 3 Complete': {
+        'new_instructor': 'Eric Keith',
+        'old_instructor': 'Ryan Shulman'
+    },
     # 'Phase 4 Complete': 'Instructor 4',
     # 'Phase 5 Complete': 'Instructor 5'
 }
+
 
 def get_sheet_id_by_name(service, spreadsheet_id, sheet_name):
     """
@@ -121,8 +125,8 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     qualified_students = []
     for student in students:
         url = (
-        f'{COURSEURL}/api/v1/courses/{course_id}/assignments/'
-        f'{target_assignment_id}/submissions/{student["id"]}'
+            f'{COURSEURL}/api/v1/courses/{course_id}/assignments/'
+            f'{target_assignment_id}/submissions/{student["id"]}'
         )
 
         params = {'include': ['submission_history']}
@@ -131,15 +135,24 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
         submission = response.json()
 
         if submission['score'] == score and submission['graded_at'] >= since_date:
+            phase_name = assignment_name
+            new_instructor_name = PHASE_INSTRUCTOR_MAPPING[phase_name].get(
+                'new_instructor', 'Unknown Instructor')
             qualified_students.append({
                 'id': student['id'],
                 'name': student['name'],
                 'sortable_name': student['sortable_name'],
                 'email': student['email'],
                 'sis_user_id': student['sis_user_id'],
-                'assignment_name': assignment_name
+                'assignment_name': assignment_name,
+                'new_instructor_name': new_instructor_name,
+                'new_instructor_uuid': (
+                    f'=VLOOKUP("{new_instructor_name}", '
+                    f'\'Instructor Roster\'!A:B, 2, FALSE)'
+            )
             })
     return qualified_students
+
 
 def append_to_google_sheet(data, creds):
     """
@@ -160,29 +173,61 @@ def append_to_google_sheet(data, creds):
     sheet_id = get_sheet_id_by_name(service, spreadsheet_id, SHEET_TAB_NAME)
 
    # Step 1: Retrieve the existing data from the Google Sheet
-    # Assuming 'sis_user_id' is in column C
-    range_name = f'{SHEET_TAB_NAME}!A2:E'
+    # Assuming 'sis_user_id' is in column C and 'new_instructor_id' is in column F
+    range_name = f'{SHEET_TAB_NAME}!A2:F'
     # pylint: disable=maybe-no-member
     result = service.spreadsheets().values().get(
         spreadsheetId=spreadsheet_id, range=range_name).execute()
     existing_data = result.get('values', [])
 
-    # Step 2: Extract the 'sis_user_id' column data
-    existing_sis_user_ids = [row[2] for row in existing_data if len(row) > 2]
+    # Step 2: Extract the 'sis_user_id' and 'new_instructor_uuid' column data
+    existing_students = [
+        {
+            'sis_user_id': row[2],
+            'new_instructor_uuid': row[5]
+        } for row in existing_data if len(row) > 5
+
+    ] if existing_data else []
     values = []
 
     # Step 3: Check for duplicates between the new data and the existing data
     for student in data:
-        if student['sis_user_id'] not in existing_sis_user_ids:
+        print(student)
+        # Check if the student is already in the sheet with the same instructor UUID
+        is_duplicate = any(
+            existing_student['sis_user_id'] == student['sis_user_id']
+            and existing_student['new_instructor_uuid'] == student['new_instructor_uuid']
+            for existing_student in existing_students
+        )
+        if not is_duplicate:
             # Get the instructor name based on the assignment name
-            instructor_name = PHASE_INSTRUCTOR_MAPPING.get(
-                student['assignment_name'], 'Unknown Instructor')
+            phase_name = student['assignment_name']
+            instructor_names = PHASE_INSTRUCTOR_MAPPING.get(phase_name, {})
+            new_instructor_name = instructor_names.get(
+                'new_instructor', 'Unknown Instructor')
+            old_instructor_name = instructor_names.get(
+                'old_instructor', 'Unknown Instructor')
+            new_instructor_uuid_formula = (
+                f'=VLOOKUP("{new_instructor_name}", '
+                f'\'Instructor Roster\'!A:B, 2, FALSE)'
+            )
+            old_instructor_uuid_formula = (
+                f'=VLOOKUP("{old_instructor_name}", '
+                f'\'Instructor Roster\'!A:B, 2, FALSE)'
+            )
+            #new_instructor_uuid = service.spreadsheets().values().get(
+            #    spreadsheetId=spreadsheet_id, range=new_instructor_uuid_formula).execute().get('values', [[]])[0][0]
+            #old_instructor_uuid = service.spreadsheets().values().get(
+            #    spreadsheetId=spreadsheet_id, range=old_instructor_uuid_formula).execute().get('values', [[]])[0][0]
             row = [
                 datetime.datetime.now().strftime('%Y-%m-%d'),  # Week of
                 student['name'],  # Full name
                 student['sis_user_id'],  # sis_user_id
-                student['email'],  # Email address
+                student['email']  # Email address
+                #old_instructor_uuid,  # Old Instructor UUID
+                #new_instructor_uuid  # New Instructor UUID
             ]
+
             values.append(row)
 
     if not values:
@@ -208,6 +253,7 @@ def append_to_google_sheet(data, creds):
                         'startRowIndex': 1,
                         'endRowIndex': 1 + len(values),
                         'startColumnIndex': 0,
+                        # increase end column index by 1
                         'endColumnIndex': 1 + len(values[0]) + 1
                     },
                     'rows': [
@@ -216,13 +262,15 @@ def append_to_google_sheet(data, creds):
                                 {'userEnteredValue': {'stringValue': str(cell)}} for cell in row
                             ] + [
                                 {
-                            'userEnteredValue': {
-                                'formulaValue': (
-                                    f'=VLOOKUP("{instructor_name}", '
-                                    f'\'Instructor Roster\'!A:B, 2, FALSE)'
-                                )
-                            }
-                        }
+                                    'userEnteredValue': {
+                                        'formulaValue': (old_instructor_uuid_formula)
+                                    }
+                                },
+                                {
+                                    'userEnteredValue': {
+                                        'formulaValue': (new_instructor_uuid_formula)
+                                    }
+                                }
                             ]
                         } for row in values
                     ],
@@ -277,15 +325,18 @@ def main():
         associated_courses = get_associated_courses(blueprint_course)
         for course in associated_courses:
             # print(f"Processing course ID: {course['id']}")
-            for phase_name, instructor_name in PHASE_INSTRUCTOR_MAPPING.items():
+            for phase_name, instructor_mapping in PHASE_INSTRUCTOR_MAPPING.items():
+                new_instructor_name = instructor_mapping['new_instructor']
+                old_instructor_name = instructor_mapping['old_instructor']
                 students = get_students_with_assignment(
                     course['id'], phase_name, 1, 7)
-                # Update instructor_name for each student
                 for student in students:
-                    student["instructor_name"] = instructor_name
+                    student["new_instructor_name"] = new_instructor_name
+                    student["old_instructor_name"] = old_instructor_name
                 all_students.extend(students)
 
     append_to_google_sheet(all_students, creds)
+
 
 if __name__ == '__main__':
     main()
