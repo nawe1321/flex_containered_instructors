@@ -146,17 +146,18 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
                 'sis_user_id': student['sis_user_id'],
                 'assignment_name': assignment_name,
                 'new_instructor_name': new_instructor_name,
-                'new_instructor_uuid': (
+                'new_instructor_uuid_formula': (
                     f'=VLOOKUP("{new_instructor_name}", '
                     f'\'Instructor Roster\'!A:B, 2, FALSE)'
-            )
+                )
             })
     return qualified_students
 
 
 def append_to_google_sheet(data, creds):
     """
-    Append non-duplicate student data to a specified Google Sheet.
+    Append non-duplicate student data to a specified Google Sheet, 
+    based on student UUID matched with new instructor name.
 
     Args:
         data (list): A list of dictionaries containing student information to append.
@@ -173,18 +174,18 @@ def append_to_google_sheet(data, creds):
     sheet_id = get_sheet_id_by_name(service, spreadsheet_id, SHEET_TAB_NAME)
 
    # Step 1: Retrieve the existing data from the Google Sheet
-    # Assuming 'sis_user_id' is in column C and 'new_instructor_id' is in column F
+    # Assuming 'sis_user_id' is in column C and 'new_instructor_name' is in column E
     range_name = f'{SHEET_TAB_NAME}!A2:F'
     # pylint: disable=maybe-no-member
     result = service.spreadsheets().values().get(
         spreadsheetId=spreadsheet_id, range=range_name).execute()
     existing_data = result.get('values', [])
 
-    # Step 2: Extract the 'sis_user_id' and 'new_instructor_uuid' column data
+    # Step 2: Extract the 'sis_user_id' and 'new_instructor_name' column data
     existing_students = [
         {
             'sis_user_id': row[2],
-            'new_instructor_uuid': row[5]
+            'new_instructor_name': row[4]
         } for row in existing_data if len(row) > 5
 
     ] if existing_data else []
@@ -193,12 +194,14 @@ def append_to_google_sheet(data, creds):
     # Step 3: Check for duplicates between the new data and the existing data
     for student in data:
         print(student)
-        # Check if the student is already in the sheet with the same instructor UUID
+        print(existing_students)
+        # Check if the student is already in the sheet with the same new instructor name
         is_duplicate = any(
             existing_student['sis_user_id'] == student['sis_user_id']
-            and existing_student['new_instructor_uuid'] == student['new_instructor_uuid']
+            and existing_student['new_instructor_name'] == student['new_instructor_name']
             for existing_student in existing_students
         )
+        print(is_duplicate)
         if not is_duplicate:
             # Get the instructor name based on the assignment name
             phase_name = student['assignment_name']
@@ -215,18 +218,13 @@ def append_to_google_sheet(data, creds):
                 f'=VLOOKUP("{old_instructor_name}", '
                 f'\'Instructor Roster\'!A:B, 2, FALSE)'
             )
-            #new_instructor_uuid = service.spreadsheets().values().get(
-            #    spreadsheetId=spreadsheet_id, range=new_instructor_uuid_formula).execute().get('values', [[]])[0][0]
-            #old_instructor_uuid = service.spreadsheets().values().get(
-            #    spreadsheetId=spreadsheet_id, range=old_instructor_uuid_formula).execute().get('values', [[]])[0][0]
             row = [
                 datetime.datetime.now().strftime('%Y-%m-%d'),  # Week of
                 student['name'],  # Full name
                 student['sis_user_id'],  # sis_user_id
-                student['email']  # Email address
-                #old_instructor_uuid,  # Old Instructor UUID
-                #new_instructor_uuid  # New Instructor UUID
-            ]
+                student['email'],  # Email address
+                student['new_instructor_name'] #new instructor name
+                ]
 
             values.append(row)
 
