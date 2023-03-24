@@ -13,7 +13,6 @@ This script retrieves information about Flex students' progress in Canvas course
 1. Set up your environment variables in a `.env` file. You need to provide the following:
 
 ctoken=YOUR_CANVAS_API_TOKEN
-
 curl=YOUR_CANVAS_URL
 
 Replace `YOUR_CANVAS_API_TOKEN` with your Canvas API token, and `YOUR_CANVAS_URL` with your Canvas instance URL (e.g., `https://learning.flatironschool.com:443`).
