@@ -85,6 +85,38 @@ def get_associated_courses(course_id):
     return response.json()
 
 
+def get_courses_without_blueprint():
+    """
+    Retrieves a list of course IDs that are not associated with a 
+    Blueprint course from the Canvas API.
+
+    Returns:
+        list: A list of course IDs that are not associated with a Blueprint course.
+    """
+    url = f'{COURSEURL}/api/v1/accounts/667/courses'
+    headers = {'Authorization': f'Bearer {CANVAS_API_KEY}'}
+    params = {
+        'with_enrollments': True,
+        'published': True,
+        'completed': False,
+        'blueprint_associated': False,
+        'per_page': 100
+    }
+    course_ids = []
+    for phase in range(2, 6):
+        search_term = f'Phase {phase}'
+        params['search_term'] = search_term
+        response = requests.get(url, headers=headers,
+                                params=params, timeout=10)
+        if response.status_code == 200:
+            results = response.json()
+            for result in results:
+                course_ids.append(result['id'])
+        else:
+            response.raise_for_status()
+    return course_ids
+
+
 def get_students_with_assignment(course_id, assignment_name, score, days):
     """
     Get a list of students who meet the specified assignment criteria in a given course.
@@ -305,7 +337,8 @@ def main():
 
     This function:
         1. Authenticates the user with the Google API and refreshes the access token if necessary.
-        2. Loops through blueprint courses and their associated courses.
+        2. Loops through blueprint courses and their associated courses, 
+        as well as courses that don't have an associated blueprint.
         3. Retrieves students who completed a specific assignment with a specified score 
         within a given number of days.
         4. Updates the instructor name for each student based on the phase of the course.
@@ -342,7 +375,19 @@ def main():
                     student["new_instructor_name"] = new_instructor_name
                     student["old_instructor_name"] = old_instructor_name
                 all_students.extend(students)
-
+    # Process courses without blueprint
+    course_ids = get_courses_without_blueprint()
+    for course_id in course_ids:
+        print(f"Processing course ID: {course_id}")
+        for phase_name, instructor_mapping in PHASE_INSTRUCTOR_MAPPING.items():
+            new_instructor_name = instructor_mapping['new_instructor']
+            old_instructor_name = instructor_mapping['old_instructor']
+            students = get_students_with_assignment(
+                course_id, phase_name, 1, 7)
+            for student in students:
+                student["new_instructor_name"] = new_instructor_name
+                student["old_instructor_name"] = old_instructor_name
+            all_students.extend(students)
     append_to_google_sheet(all_students, creds)
 
 
