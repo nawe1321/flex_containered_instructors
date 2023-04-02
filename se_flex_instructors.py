@@ -28,14 +28,14 @@ PHASE_INSTRUCTOR_MAPPING = {
         'new_instructor': 'Madeline Stark',
         'old_instructor': 'Eric Keith'
     },
-    #'[Flex] Student Survey for Phase 3': {
+    # '[Flex] Student Survey for Phase 3': {
     #    'new_instructor': 'Instructor 4',
     #    'old_instructor': 'old_instructor'
-    #},
-    #'[Flex] Student Survey for Phase 4': {
+    # },
+    # '[Flex] Student Survey for Phase 4': {
     #    'new_instructor': 'Instructor 5',
     #    'old_instructor': 'old_instructor'
-    #}
+    # }
 }
 
 
@@ -154,7 +154,11 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
                 'email': student['email'],
                 'sis_user_id': student['sis_user_id'],
                 'assignment_name': assignment_name,
-                'new_instructor_name': new_instructor_name
+                'new_instructor_name': new_instructor_name,
+                'new_instructor_uuid_formula': (
+                    f'=VLOOKUP("{new_instructor_name}", '
+                    f'\'Instructor Roster\'!A:B, 2, FALSE)'
+                )
             })
     return qualified_students
 
