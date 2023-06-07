@@ -25,11 +25,15 @@ PHASE_INSTRUCTOR_MAPPING = {
         'old_instructor': 'Ryan Shulman'
     },
     '[Flex] Student Survey for Phase 2': {
-        'new_instructor': 'Nancy Noyes' if 3299 in BLUEPRINT_COURSES else 'Aastha Saxena' if 5935 in BLUEPRINT_COURSES else 'unknown instructor',
+        'new_instructor': 'Nancy Noyes' if 3299 in BLUEPRINT_COURSES 
+        else 'Aastha Saxena' if 5935 in BLUEPRINT_COURSES
+        else 'unknown instructor',
         'old_instructor': 'Eric Keith'
     },
     '[Flex] Student Survey for Phase 3': {
-        'new_instructor': 'Enoch Griffith' if 6130 in BLUEPRINT_COURSES else 'Benjamin Aschenbrenner' if 4182 in BLUEPRINT_COURSES else 'unknown instructor',
+        'new_instructor': 'Enoch Griffith' if 6130 in BLUEPRINT_COURSES 
+        else 'Benjamin Aschenbrenner' if 4182 in BLUEPRINT_COURSES
+        else 'unknown instructor',
         'old_instructor': 'old_instructor'
     },
     '[Flex] Student Survey for Phase 4': {
@@ -148,7 +152,10 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     response = requests.get(url, headers=headers, params=params, timeout=10)
     students = response.json()
 
-    url = f'{COURSEURL}/api/v1/courses/{course_id}/assignments?search_term=%5BFlex%5D%20Student%20Survey%20for%20Phase'
+    url = (
+        f'{COURSEURL}/api/v1/courses/{course_id}/'
+        f'assignments?search_term=%5BFlex%5D%20Student%20Survey%20for%20Phase'
+    )
     # Add this line to retrieve the first 200 assignments
     params = {'per_page': 200}
     response = requests.get(url, headers=headers, params=params, timeout=10)
@@ -371,8 +378,9 @@ def main():
             token.write(creds.to_json())
     all_students = []
     phase_2_instructors = ['Madeline Stark', 'Demetrio Lima']
-    phase_5_instructors = ['Ryan Parrish', 'Dustin Anderson', 'Madeline Stark', 'Demetrio Lima', 'Nancy Noyes',
-                           'Aastha Saxena', 'Enoch Griffith', 'Benjamin Aschenbrenner']
+    phase_5_instructors = ['Ryan Parrish', 'Dustin Anderson', 'Madeline Stark', 'Demetrio Lima',
+                           'Nancy Noyes', 'Aastha Saxena', 'Enoch Griffith',
+                            'Benjamin Aschenbrenner']
     for blueprint_course in BLUEPRINT_COURSES:
         # print(f"Processing blueprint course: {blueprint_course}")
         associated_courses = get_associated_courses(blueprint_course)
