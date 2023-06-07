@@ -25,17 +25,25 @@ PHASE_INSTRUCTOR_MAPPING = {
         'old_instructor': 'Ryan Shulman'
     },
     '[Flex] Student Survey for Phase 2': {
-        'new_instructor': 'Madeline Stark',
+        'new_instructor': 'Nancy Noyes' if 3299 in BLUEPRINT_COURSES else 'Aastha Saxena' if 5935 in BLUEPRINT_COURSES else 'unknown instructor',
         'old_instructor': 'Eric Keith'
     },
-    # '[Flex] Student Survey for Phase 3': {
-    #    'new_instructor': 'Instructor 4',
-    #    'old_instructor': 'old_instructor'
-    # },
-    # '[Flex] Student Survey for Phase 4': {
-    #    'new_instructor': 'Instructor 5',
-    #    'old_instructor': 'old_instructor'
-    # }
+    '[Flex] Student Survey for Phase 3': {
+        'new_instructor': 'Enoch Griffith' if 6130 in BLUEPRINT_COURSES else 'Benjamin Aschenbrenner' if 4182 in BLUEPRINT_COURSES else 'unknown instructor',
+        'old_instructor': 'old_instructor'
+    },
+    '[Flex] Student Survey for Phase 4': {
+        'new_instructor': 'Instructor 5',
+        'old_instructor': 'old_instructor'
+    }
+}
+COURSE_INSTRUCTOR_MAPPING = {
+    6191: 'Madeline Stark',
+    5145: 'Nancy Noyes',
+    5153: 'Nancy Noyes',
+    5146: 'Benjamin Aschenbrenner',
+    5154: 'Benjamin Aschenbrenner',
+    5162: 'Benjamin Aschenbrenner'
 }
 
 
@@ -97,6 +105,7 @@ def get_courses_without_blueprint():
     headers = {'Authorization': f'Bearer {CANVAS_API_KEY}'}
     params = {
         'with_enrollments': True,
+        'enrollment_type[]': 'Student',
         'published': True,
         'completed': False,
         'blueprint_associated': False,
@@ -139,7 +148,7 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     response = requests.get(url, headers=headers, params=params, timeout=10)
     students = response.json()
 
-    url = f'{COURSEURL}/api/v1/courses/{course_id}/assignments'
+    url = f'{COURSEURL}/api/v1/courses/{course_id}/assignments?search_term=%5BFlex%5D%20Student%20Survey%20for%20Phase'
     # Add this line to retrieve the first 200 assignments
     params = {'per_page': 200}
     response = requests.get(url, headers=headers, params=params, timeout=10)
@@ -361,13 +370,28 @@ def main():
         with open('token.json', 'w', encoding='utf-8') as token:
             token.write(creds.to_json())
     all_students = []
+    phase_2_instructors = ['Madeline Stark', 'Demetrio Lima']
+    phase_5_instructors = ['Ryan Parrish', 'Dustin Anderson', 'Madeline Stark', 'Demetrio Lima', 'Nancy Noyes',
+                           'Aastha Saxena', 'Enoch Griffith', 'Benjamin Aschenbrenner']
     for blueprint_course in BLUEPRINT_COURSES:
         # print(f"Processing blueprint course: {blueprint_course}")
         associated_courses = get_associated_courses(blueprint_course)
+        phase_2_counter = 0  # Reset counter for each blueprint course
+        phase_5_counter = 0  # Reset counter for each blueprint course
         for course in associated_courses:
             # print(f"Processing course ID: {course['id']}")
             for phase_name, instructor_mapping in PHASE_INSTRUCTOR_MAPPING.items():
-                new_instructor_name = instructor_mapping['new_instructor']
+                if phase_name == '[Flex] Student Survey for Phase 1':
+                    # Use mod 2 counter for Phase 2 to alternate between instructors
+                    new_instructor_name = phase_2_instructors[phase_2_counter % len(
+                        phase_2_instructors)]
+                    phase_2_counter += 1
+                elif phase_name == '[Flex] Student Survey for Phase 4':
+                    new_instructor_name = phase_5_instructors[phase_5_counter % len(
+                        phase_5_instructors)]
+                    phase_5_counter += 1
+                else:
+                    new_instructor_name = instructor_mapping['new_instructor']
                 old_instructor_name = instructor_mapping['old_instructor']
                 students = get_students_with_assignment(
                     course['id'], phase_name, 1, 7)
@@ -379,9 +403,8 @@ def main():
     course_ids = get_courses_without_blueprint()
     for course_id in course_ids:
         print(f"Processing course ID: {course_id}")
-        for phase_name, instructor_mapping in PHASE_INSTRUCTOR_MAPPING.items():
-            new_instructor_name = instructor_mapping['new_instructor']
-            old_instructor_name = instructor_mapping['old_instructor']
+        new_instructor_name = COURSE_INSTRUCTOR_MAPPING[course_id]
+        for phase_name, _ in PHASE_INSTRUCTOR_MAPPING.items():
             students = get_students_with_assignment(
                 course_id, phase_name, 1, 7)
             for student in students:
