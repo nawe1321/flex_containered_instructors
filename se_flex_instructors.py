@@ -21,24 +21,20 @@ SHEET_TAB_NAME = 'SE'
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 PHASE_INSTRUCTOR_MAPPING = {
     '[Flex] Student Survey for Phase 1': {
-        'new_instructor': 'Nancy Noyes',
-        'old_instructor': 'Ryan Shulman'
+        # determined in array in main() 'new_instructor': 'Nancy Noyes'
     },
     '[Flex] Student Survey for Phase 2': {
         'new_instructor': 'Nancy Noyes' if 3299 in BLUEPRINT_COURSES 
         else 'Aastha Saxena' if 5935 in BLUEPRINT_COURSES
-        else 'unknown instructor',
-        'old_instructor': 'Eric Keith'
+        else 'unknown instructor'
     },
     '[Flex] Student Survey for Phase 3': {
         'new_instructor': 'Enoch Griffith' if 6130 in BLUEPRINT_COURSES 
         else 'Benjamin Aschenbrenner' if 4182 in BLUEPRINT_COURSES
-        else 'unknown instructor',
-        'old_instructor': 'old_instructor'
+        else 'unknown instructor'
     },
     '[Flex] Student Survey for Phase 4': {
-        'new_instructor': 'Instructor 5',
-        'old_instructor': 'old_instructor'
+        # determined in array in main() 'new_instructor': 'Instructor 5'
     }
 }
 COURSE_INSTRUCTOR_MAPPING = {
@@ -202,11 +198,7 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
                 'email': student['email'],
                 'sis_user_id': student['sis_user_id'],
                 'assignment_name': assignment_name,
-                'new_instructor_name': new_instructor_name,
-                'new_instructor_uuid_formula': (
-                    f'=VLOOKUP("{new_instructor_name}", '
-                    f'\'Instructor Roster\'!A:B, 2, FALSE)'
-                )
+                'new_instructor_name': new_instructor_name
             })
     return qualified_students
 
@@ -238,53 +230,42 @@ def append_to_google_sheet(data, creds):
         spreadsheetId=spreadsheet_id, range=range_name).execute()
     existing_data = result.get('values', [])
 
-    # Step 2: Extract the 'sis_user_id' and 'new_instructor_name' column data
+    # Step 2: Extract the 'sis_user_id', 'new_instructor_name', and 'assignment_name' column data
     existing_students = [
         {
             'sis_user_id': row[2],
-            'new_instructor_name': row[4]
+            'assignment_name': row[5]
         } for row in existing_data if len(row) > 5
 
     ] if existing_data else []
     values = []
 
+    # Define current_row before the loop
+    current_row = len(existing_data) + 2
+
     # Step 3: Check for duplicates between the new data and the existing data
     for student in data:
-        # print(student)
-        # print(existing_students)
+        print(f'Student: {student}')
+        print(f'Existing: {existing_students}')
         # Check if the student is already in the sheet with the same new instructor name
         is_duplicate = any(
             existing_student['sis_user_id'] == student['sis_user_id']
-            and existing_student['new_instructor_name'] == student['new_instructor_name']
+            and existing_student['assignment_name'] == student['assignment_name']
             for existing_student in existing_students
         )
         print(is_duplicate)
         if not is_duplicate:
-            # Get the instructor name based on the assignment name
-            phase_name = student['assignment_name']
-            instructor_names = PHASE_INSTRUCTOR_MAPPING.get(phase_name, {})
-            new_instructor_name = instructor_names.get(
-                'new_instructor', 'Unknown Instructor')
-            old_instructor_name = instructor_names.get(
-                'old_instructor', 'Unknown Instructor')
-            new_instructor_uuid_formula = (
-                f'=IFERROR(VLOOKUP("{new_instructor_name}", '
-                f'\'Instructor Roster\'!A:B, 2, FALSE), "{new_instructor_name} not found")'
-            )
-            old_instructor_uuid_formula = (
-                f'=IFERROR(VLOOKUP("{old_instructor_name}", '
-                f'\'Instructor Roster\'!A:B, 2, FALSE), "{old_instructor_name} not found")'
-            )
-
             row = [
                 datetime.datetime.now().strftime('%Y-%m-%d'),  # Week of
                 student['name'],  # Full name
                 student['sis_user_id'],  # sis_user_id
                 student['email'],  # Email address
-                student['new_instructor_name']  # new instructor name
+                student['new_instructor_name'],  # new instructor name
+                student['assignment_name'] # Which phase completed
             ]
 
             values.append(row)
+            current_row += 1 # only add the increment for the vlookup when appending a row
 
     if not values:
         print("No new data to add.")
@@ -309,24 +290,13 @@ def append_to_google_sheet(data, creds):
                         'startRowIndex': 1,
                         'endRowIndex': 1 + len(values),
                         'startColumnIndex': 0,
-                        # increase end column index by 1
+                        # increase end column index by 1 for the Ops Complete Data Validation
                         'endColumnIndex': 1 + len(values[0]) + 1
                     },
                     'rows': [
                         {
                             'values': [
                                 {'userEnteredValue': {'stringValue': str(cell)}} for cell in row
-                            ] + [
-                                {
-                                    'userEnteredValue': {
-                                        'formulaValue': (old_instructor_uuid_formula)
-                                    }
-                                },
-                                {
-                                    'userEnteredValue': {
-                                        'formulaValue': (new_instructor_uuid_formula)
-                                    }
-                                }
                             ]
                         } for row in values
                     ],
@@ -345,6 +315,53 @@ def append_to_google_sheet(data, creds):
     updated_rows = len(values)
     print(f'{updated_rows} rows updated.')
 
+
+def get_counters():
+    """
+    Fetch the counters from 'counters.txt' file.
+
+    This function reads the 'counters.txt' file line by line and returns the
+    values as integers. If the file does not exist or contains less than 2 lines,
+    the function returns 0, 0.
+
+    Returns:
+        phase_2_counter (int): Counter for phase 2.
+        phase_5_counter (int): Counter for phase 5.
+    """
+    if not os.path.exists('counters.txt'):
+        return 0, 0
+
+    with open('counters.txt', 'r', encoding='utf-8') as file:
+        counters = file.readlines()
+
+    if len(counters) < 2:
+        return 0, 0
+
+    phase_2_counter = int(counters[0].strip())
+    phase_5_counter = int(counters[1].strip())
+
+    return phase_2_counter, phase_5_counter
+
+
+
+def save_counters(phase_2_counter, phase_5_counter):
+    """
+    Save the counters to 'counters.txt' file.
+
+    This function takes two arguments, phase_2_counter and phase_5_counter,
+    converts them to strings, and writes them to 'counters.txt' file, one
+    on each line.
+
+    Args:
+        phase_2_counter (int): The counter for phase 2 to be saved.
+        phase_5_counter (int): The counter for phase 5 to be saved.
+
+    Returns:
+        None
+    """
+    with open('counters.txt', 'w', encoding='utf-8') as file:
+        file.write(str(phase_2_counter) + '\n')
+        file.write(str(phase_5_counter) + '\n')
 
 def main():
     """
@@ -381,45 +398,43 @@ def main():
     phase_5_instructors = ['Ryan Parrish', 'Dustin Anderson', 'Madeline Stark', 'Demetrio Lima',
                            'Nancy Noyes', 'Aastha Saxena', 'Enoch Griffith',
                             'Benjamin Aschenbrenner']
+    phase_2_counter, phase_5_counter = get_counters()
     for blueprint_course in BLUEPRINT_COURSES:
         # print(f"Processing blueprint course: {blueprint_course}")
         associated_courses = get_associated_courses(blueprint_course)
-        phase_2_counter = 0  # Reset counter for each blueprint course
-        phase_5_counter = 0  # Reset counter for each blueprint course
         for course in associated_courses:
             # print(f"Processing course ID: {course['id']}")
             for phase_name, instructor_mapping in PHASE_INSTRUCTOR_MAPPING.items():
-                if phase_name == '[Flex] Student Survey for Phase 1':
-                    # Use mod 2 counter for Phase 2 to alternate between instructors
-                    new_instructor_name = phase_2_instructors[phase_2_counter % len(
-                        phase_2_instructors)]
-                    phase_2_counter += 1
-                elif phase_name == '[Flex] Student Survey for Phase 4':
-                    new_instructor_name = phase_5_instructors[phase_5_counter % len(
-                        phase_5_instructors)]
-                    phase_5_counter += 1
-                else:
-                    new_instructor_name = instructor_mapping['new_instructor']
-                old_instructor_name = instructor_mapping['old_instructor']
                 students = get_students_with_assignment(
-                    course['id'], phase_name, 1, 7)
+                    course['id'], phase_name, 1, 30)
                 for student in students:
+                    if phase_name == '[Flex] Student Survey for Phase 1':
+                        # Use mod 2 counter for Phase 2 to alternate between instructors
+                        new_instructor_name = phase_2_instructors[phase_2_counter % len(
+                            phase_2_instructors)]
+                        phase_2_counter += 1
+                    elif phase_name == '[Flex] Student Survey for Phase 4':
+                        new_instructor_name = phase_5_instructors[phase_5_counter % len(
+                            phase_5_instructors)]
+                        phase_5_counter += 1
+                    else:
+                        new_instructor_name = instructor_mapping['new_instructor']
                     student["new_instructor_name"] = new_instructor_name
-                    student["old_instructor_name"] = old_instructor_name
-                all_students.extend(students)
+                    all_students.extend([student])
+
     # Process courses without blueprint
     course_ids = get_courses_without_blueprint()
     for course_id in course_ids:
         print(f"Processing course ID: {course_id}")
-        new_instructor_name = COURSE_INSTRUCTOR_MAPPING[course_id]
+        new_instructor_name = COURSE_INSTRUCTOR_MAPPING.get(course_id, 'Unknown Instructor')
         for phase_name, _ in PHASE_INSTRUCTOR_MAPPING.items():
             students = get_students_with_assignment(
-                course_id, phase_name, 1, 7)
+                course_id, phase_name, 1, 30)
             for student in students:
                 student["new_instructor_name"] = new_instructor_name
-                student["old_instructor_name"] = old_instructor_name
             all_students.extend(students)
     append_to_google_sheet(all_students, creds)
+    save_counters(phase_2_counter, phase_5_counter)
 
 
 if __name__ == '__main__':
