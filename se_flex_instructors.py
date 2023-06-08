@@ -409,7 +409,7 @@ def main():
             # print(f"Processing course ID: {course['id']}")
             for phase_name, instructor_mapping in PHASE_INSTRUCTOR_MAPPING.items():
                 students = get_students_with_assignment(
-                    course['id'], phase_name, 1, 30)
+                    course['id'], phase_name, 1, 7)
                 for student in students:
                     if phase_name == '[Flex] Student Survey for Phase 1':
                         # Use mod 2 counter for Phase 2 to alternate between instructors
@@ -432,7 +432,7 @@ def main():
         new_instructor_name = COURSE_INSTRUCTOR_MAPPING.get(course_id, 'Unknown Instructor')
         for phase_name, _ in PHASE_INSTRUCTOR_MAPPING.items():
             students = get_students_with_assignment(
-                course_id, phase_name, 1, 30)
+                course_id, phase_name, 1, 7)
             for student in students:
                 student["new_instructor_name"] = new_instructor_name
             all_students.extend(students)
