@@ -16,7 +16,7 @@ load_dotenv()
 # Replace with your own API key and domain, if needed. These are env. variables for AWS
 CANVAS_API_KEY = os.environ.get("ctoken")
 COURSEURL = os.environ.get("curl")
-BLUEPRINT_COURSES = [3299, 4182, 6667, 5935, 6130, 6343]
+BLUEPRINT_COURSES = [3299, 4182, 6667, 5935, 6130, 6343, 3309]
 SHEET_TAB_NAME = 'SE'
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 PHASE_INSTRUCTOR_MAPPING = {
@@ -261,15 +261,24 @@ def append_to_google_sheet(data, creds):
                 student['sis_user_id'],  # sis_user_id
                 student['email'],  # Email address
                 student['new_instructor_name'],  # new instructor name
-                student['assignment_name'] # Which phase completed
+                student['assignment_name'],  # Which phase completed
+                {"userEnteredValue": {
+                    "formulaValue": (
+                        f'=IFERROR(VLOOKUP("{student["new_instructor_name"]}",'
+                        f' \'Instructor Roster\'!A:B, 2, FALSE), "not found")'
+                    )
+                }}
             ]
 
             values.append(row)
-            current_row += 1 # only add the increment for the vlookup when appending a row
+            current_row += 1  # only add the increment for the vlookup when appending a row
 
     if not values:
         print("No new data to add.")
         return
+
+    values_for_update = [{'values': [{'userEnteredValue': {'stringValue': str(
+        cell)}} if not isinstance(cell, dict) else cell for cell in row]} for row in values]
 
     body = {
         'requests': [
@@ -293,13 +302,7 @@ def append_to_google_sheet(data, creds):
                         # increase end column index by 1 for the Ops Complete Data Validation
                         'endColumnIndex': 1 + len(values[0]) + 1
                     },
-                    'rows': [
-                        {
-                            'values': [
-                                {'userEnteredValue': {'stringValue': str(cell)}} for cell in row
-                            ]
-                        } for row in values
-                    ],
+                    'rows': values_for_update,
                     'fields': 'userEnteredValue'
                 }
             }
