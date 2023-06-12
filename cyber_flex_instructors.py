@@ -211,12 +211,12 @@ def append_to_google_sheet(data, creds):
             old_instructor_name = instructor_names.get(
                 'old_instructor', 'Unknown Instructor')
             new_instructor_uuid_formula = (
-                f'=VLOOKUP("{new_instructor_name}", '
-                f'\'Instructor Roster\'!A:B, 2, FALSE)'
+                f'=IFERROR(VLOOKUP("{new_instructor_name}",'
+                f' \'Instructor Roster\'!A:B, 2, FALSE), "not found")'
             )
             old_instructor_uuid_formula = (
-                f'=VLOOKUP("{old_instructor_name}", '
-                f'\'Instructor Roster\'!A:B, 2, FALSE)'
+                f'==IFERROR(VLOOKUP("{old_instructor_name}", '
+                f'\'Instructor Roster\'!A:B, 2, FALSE), "not found")'
             )
             row = [
                 datetime.datetime.now().strftime('%Y-%m-%d'),  # Week of
