@@ -195,7 +195,7 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
                 'id': student['id'],
                 'name': student['name'],
                 'sortable_name': student['sortable_name'],
-                'email': student['email'],
+                'email': student.get('email', 'No email'),
                 'sis_user_id': student['sis_user_id'],
                 'assignment_name': assignment_name,
                 'new_instructor_name': new_instructor_name
