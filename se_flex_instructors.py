@@ -143,7 +143,7 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
         student id, name, sortable_name, email, sis_user_id, and assignment_name.
     """
     url = f'{COURSEURL}/api/v1/courses/{course_id}/users'
-    params = {'enrollment_type[]': 'student'}
+    params = {'enrollment_type[]': 'student', 'per_page': 100}
     headers = {'Authorization': f'Bearer {CANVAS_API_KEY}'}
     response = requests.get(url, headers=headers, params=params, timeout=10)
     students = response.json()
@@ -160,7 +160,7 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
     # Print all assignments to inspect the results
     # print(f"Course ID: {course_id}, All Assignments:")
     # for a in assignments:
-    # print(f"  - {a['name']} (ID: {a['id']})")
+    #    print(f"  - {a['name']} (ID: {a['id']})")
 
     target_assignment = next(
         (a for a in assignments if a['name'] == assignment_name), None)
@@ -185,22 +185,35 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
         params = {'include': ['submission_history']}
         response = requests.get(url, headers=headers,
                                 params=params, timeout=10)
-        submission = response.json()
+        try:
+            submission = response.json()
+            if 'errors' in submission:
+                print(f"No submission found for {student['name']} on {assignment_name}")
+                continue
+            student_name = student['name']
+            graded_at = submission.get('graded_at')
 
-        if submission['score'] == score and submission['graded_at'] >= since_date:
-            phase_name = assignment_name
-            new_instructor_name = PHASE_INSTRUCTOR_MAPPING[phase_name].get(
-                'new_instructor', 'Unknown Instructor')
-            qualified_students.append({
-                'id': student['id'],
-                'name': student['name'],
-                'sortable_name': student['sortable_name'],
-                'email': student.get('email', 'No email'),
-                'sis_user_id': student['sis_user_id'],
-                'assignment_name': assignment_name,
-                'new_instructor_name': new_instructor_name
-            })
+            if submission.get('score') == score and graded_at and graded_at >= since_date:
+                phase_name = assignment_name
+                new_instructor_name = PHASE_INSTRUCTOR_MAPPING[phase_name].get(
+                    'new_instructor', 'Unknown Instructor')
+                qualified_students.append({
+                    'id': student['id'],
+                    'name': student_name,
+                    'sortable_name': student['sortable_name'],
+                    'email': student.get('email', 'No email'),
+                    'sis_user_id': student['sis_user_id'],
+                    'assignment_name': assignment_name,
+                    'new_instructor_name': new_instructor_name
+                })
+                print(qualified_students)
+        except KeyError as e:
+            print(f"KeyError: {e}")
+            print(f"Current student: {student}")
+            print(f"Current submission: {submission}")
+
     return qualified_students
+
 
 
 def append_to_google_sheet(data, creds):

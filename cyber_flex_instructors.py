@@ -93,7 +93,7 @@ def get_students_with_assignment(course_id, assignment_name, score, days):
         student id, name, sortable_name, email, sis_user_id, and assignment_name.
     """
     url = f'{COURSEURL}/api/v1/courses/{course_id}/users'
-    params = {'enrollment_type[]': 'student'}
+    params = {'enrollment_type[]': 'student', 'per_page': 100}
     headers = {'Authorization': f'Bearer {CANVAS_API_KEY}'}
     response = requests.get(url, headers=headers, params=params, timeout=10)
     students = response.json()
