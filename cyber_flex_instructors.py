@@ -215,7 +215,7 @@ def append_to_google_sheet(data, creds):
                 f' \'Instructor Roster\'!A:B, 2, FALSE), "not found")'
             )
             old_instructor_uuid_formula = (
-                f'==IFERROR(VLOOKUP("{old_instructor_name}", '
+                f'=IFERROR(VLOOKUP("{old_instructor_name}", '
                 f'\'Instructor Roster\'!A:B, 2, FALSE), "not found")'
             )
             row = [
